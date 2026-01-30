@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>AVL Tree Visualizer</title>
+
+<style>
+    body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: #f6f7fb;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+    }
+
+    .container {
+        width: 1200px;
+        text-align: center;
+        padding: 30px 20px;
+    }
+
+    h2 {
+        color: #2f3e46;
+        margin-bottom: 20px;
+    }
+
+    .controls {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    input {
+        padding: 10px 12px;
+        width: 260px;
+        border-radius: 8px;
+        border: 1.5px solid #bfc8d6;
+        font-size: 14px;
+    }
+
+    button {
+        padding: 10px 16px;
+        border-radius: 8px;
+        border: 1.5px solid #bfc8d6;
+        background: #e9eef6;
+        color: #2f3e46;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background: #dde5f2;
+    }
+
+    .tree-box {
+        display: flex;
+        justify-content: center;
+        margin-top: 10px;
+    }
+
+    svg {
+        background: #ffffff;
+        border: 1.5px solid #cfd8e3;
+        border-radius: 14px;
+    }
+
+    /* EDGES */
+    line {
+        stroke: #6c757d;
+        stroke-width: 2.5;
+    }
+
+    /* NODES */
+    circle {
+        fill: #eef3fb;
+        stroke: #7b8fb3;
+        stroke-width: 2.5;
+    }
+
+    text.value {
+        font-size: 16px;
+        font-weight: 700;
+        fill: #2f3e46;
+    }
+
+    text.meta {
+        font-size: 12px;
+        fill: #495057;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h2>AVL Tree Visualizer</h2>
+
+    <div class="controls">
+        <input id="valueInput" placeholder="e.g. 10 20 30 40">
+        <button onclick="insertValues()">Insert</button>
+        <button onclick="resetTree()">Reset</button>
+    </div>
+
+    <div class="tree-box">
+        <svg id="treeSvg" width="1100" height="520"></svg>
+    </div>
+
+</div>
+
+<script>
+const API = "http://localhost:9090/api/avl";
+const svg = document.getElementById("treeSvg");
+
+const NODE_RADIUS = 34;
+const LEVEL_HEIGHT = 110;
+
+/* INSERT */
+async function insertValues() {
+    const input = valueInput.value.trim();
+    if (!input) return;
+
+    const values = input.split(/\s+/).map(Number);
+
+    for (let v of values) {
+        if (!isNaN(v)) {
+            await fetch(`${API}/insert/${v}`, { method: "POST" });
+        }
+    }
+
+    valueInput.value = "";
+    loadTree();
+}
+
+/* RESET */
+async function resetTree() {
+    await fetch(`${API}/reset`, { method: "POST" });
+    svg.innerHTML = "";
+}
+
+/* LOAD TREE */
+async function loadTree() {
+    const res = await fetch(`${API}/root`);
+    const root = await res.json();
+
+    svg.innerHTML = "";
+    if (!root) return;
+
+    drawTree(root, 550, 70, 260);
+}
+
+/* DRAW TREE */
+function drawTree(node, x, y, gap) {
+    if (!node) return;
+
+    if (node.left) {
+        drawLine(x, y, x - gap, y + LEVEL_HEIGHT);
+        drawTree(node.left, x - gap, y + LEVEL_HEIGHT, gap / 2);
+    }
+
+    if (node.right) {
+        drawLine(x, y, x + gap, y + LEVEL_HEIGHT);
+        drawTree(node.right, x + gap, y + LEVEL_HEIGHT, gap / 2);
+    }
+
+    drawNode(x, y, node);
+}
+
+/* SVG HELPERS */
+function drawLine(x1, y1, x2, y2) {
+    svg.innerHTML += `
+        <line x1="${x1}" y1="${y1 + NODE_RADIUS}"
+              x2="${x2}" y2="${y2 - NODE_RADIUS}" />
+    `;
+}
+
+function drawNode(x, y, node) {
+    const leftH = node.left ? node.left.height : 0;
+    const rightH = node.right ? node.right.height : 0;
+    const bf = leftH - rightH;
+
+    svg.innerHTML += `
+        <circle cx="${x}" cy="${y}" r="${NODE_RADIUS}" />
+
+        <text class="value" x="${x}" y="${y - 6}" text-anchor="middle">
+            ${node.value}
+        </text>
+
+        <text class="meta" x="${x}" y="${y + 14}" text-anchor="middle">
+            h=${node.height}, bf=${bf}
+        </text>
+    `;
+}
+
+loadTree();
+</script>
+
+</body>
+</html>
